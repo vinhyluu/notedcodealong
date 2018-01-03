@@ -2,6 +2,18 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import NoteCard from './notesCard';
 
+//20) setting up firebase
+const config = {
+  apiKey: "AIzaSyBTrOadgu8K2ZEtagP40QDLh4FuiBunBYw",
+  authDomain: "video-noted-ebf00.firebaseapp.com",
+  databaseURL: "https://video-noted-ebf00.firebaseio.com",
+  projectId: "video-noted-ebf00",
+  storageBucket: "",
+  messagingSenderId: "296180617247"
+};
+
+firebase.initializeApp(config);
+
 class App extends React.Component {
     constructor(){
       super();
@@ -9,11 +21,45 @@ class App extends React.Component {
       //every time we add a new note we're going to grab this current note state, push something to it and set it again
       this.state = {
         notes: []
-      }
+      } 
 
       this.showSidebar = this.showSidebar.bind(this);
       this.addNote = this.addNote.bind(this);
     }
+
+    // 21) when we load the page we want to connect to our firebase database
+    //lifecycle hooks: we're going look at componentDidMount
+    //when it has been rendered onto the page it'll run
+
+    //database() references the database and .ref references the entire db
+    //.on-- when it gets some sort of value and whenever that new data comes in we want something to happen which is res
+    
+    componentDidMount(){
+      firebase.database().ref().on('value', (res) => {
+        // console.log(res.val);  
+        // we need .val to get to the actual values
+
+        //in userData, we took the data, stored it in a big object with all the keys
+        const userData = res.val();
+        console.log(userData);
+        //dataArray created an empty array to store
+        const dataArray = [];
+        //24) we're taking that key, setting it as a key, and then push it into our new array
+        //we're taking that data and setting that key to it
+        //we're taking each entire object, the key within it, and putting the key inside of where the title and text data exists and then pushing those entire objects into our dataArray
+        for(let objKey in userData){
+          userData[objKey].key = objKey;
+          dataArray.push(userData[objKey]);
+        }
+        // console.log(dataArray);
+        //25) how do we set our notes?
+        this.setState({
+          notes: dataArray
+          //when the page loads now we have persistent data
+        })
+      });
+    }
+
 
     showSidebar(e){
       e.preventDefault();
@@ -40,13 +86,27 @@ class App extends React.Component {
       //Array.from -- we're making an array from something which is this.state.notes
       //we are copying the notes array and then add our notes 
 
-      const newNotes = Array.from(this.state.notes)
-      newNotes.push(note);
+      //22) we need to change some things slightly. we don't need to do the below: 
+      // const newNotes = Array.from(this.state.notes)
+      // newNotes.push(note);
+
+
       //13) this.setState will re render what's new on the page and re render it to the page
-      //we still need to render the data to the page 
-      this.setState({
-        notes: newNotes
-      });
+      //we still need to render the data to the page
+      
+      //22.5) we don't need to set the state either with firebase
+      // this.setState({
+      //   notes: newNotes
+      // });
+
+      //23) we're pushing an object to our firebase database
+      //in our firebase we have a unique key that has the 2 values for us
+      //now we have to set the state again
+      //the biggest issue we have is our notes array wants to be an array but our data is an object-- we need to be able to access the two properties
+      //also  to delete the data we need to be albe to reference the keys as well
+      const dbRef = firebase.database().ref();
+      dbRef.push(note);
+
       //18) once everything is submitted we want to clear our form and close our sidebar
       this.noteTitle.value = "";
       this.noteText.value = "";
@@ -83,7 +143,8 @@ class App extends React.Component {
                 // passing down prop of note which is both note.title and note.text in notesCard
                 <NoteCard note={note} key={`note-${i}`} />
               )
-            })} 
+              // 19) if we want the newest card to show first add reverse
+            }).reverse()} 
           </section>
 
 {/* when we click on add new it'll slide out and let us add our note */}
