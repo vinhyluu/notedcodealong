@@ -44,7 +44,10 @@ export default class NoteCard extends React.Component{
         console.log(this);
         // 40) we want to update our component 
         // this ref has to reference the states key
-        const dbRef = firebase.database().ref(this.props.note.key);
+
+        //64) rather than ref(this.props.note.key) we change it to:
+        const userId = firebase.auth().currentUser.uid;
+        const dbRef = firebase.database().ref(`users/${userId}/notes/${this.props.note.key}`);
 
         //use dbRef.update-- updating where that lives-- updating the title and the text
         dbRef.update({

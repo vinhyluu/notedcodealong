@@ -30,7 +30,9 @@ class App extends React.Component {
       // 8) we're going to add a state that's equal to an empty array. within the array will be a bunch of objects which will be the title and text
       //every time we add a new note we're going to grab this current note state, push something to it and set it again
       this.state = {
-        notes: []
+        notes: [],
+        //53) if we're not logged in we don't want the notes to appear. we're going to add another state called loggedIn:false to our state
+        loggedIn: false
       } 
 
       this.showSidebar = this.showSidebar.bind(this);
@@ -49,31 +51,50 @@ class App extends React.Component {
     //.on-- when it gets some sort of value and whenever that new data comes in we want something to happen which is res
     
     componentDidMount(){
-      firebase.database().ref().on('value', (res) => {
-        // console.log(res.val);  
-        // we need .val to get to the actual values
+      //54) when this is changed it'll pass us the user or it'll pass us nothing 
+      firebase.auth().onAuthStateChanged((user) => {
+        //54.1) if something exists we'll do the below otherwise
+        if(user){
+          // 61) have to do user.userId
+          //after doing this, the delete button won't work and the edit buttons won't work either
+          firebase.database().ref(`users/${user.uid}/notes`).on('value', (res) => {
+            // console.log(res.val);  
+            // we need .val to get to the actual values
 
-        //in userData, we took the data, stored it in a big object with all the keys
-        const userData = res.val();
-        console.log(userData);
-        //dataArray created an empty array to store
-        const dataArray = [];
-        //24) we're taking that key, setting it as a key, and then push it into our new array
-        //we're taking that data and setting that key to it
-        //we're taking each entire object, the key within it, and putting the key inside of where the title and text data exists and then pushing those entire objects into our dataArray
-        for(let objKey in userData){
-          userData[objKey].key = objKey;
-          dataArray.push(userData[objKey]);
+            //in userData, we took the data, stored it in a big object with all the keys
+            const userData = res.val();
+            console.log(userData);
+            //dataArray created an empty array to store
+            const dataArray = [];
+            //24) we're taking that key, setting it as a key, and then push it into our new array
+            //we're taking that data and setting that key to it
+            //we're taking each entire object, the key within it, and putting the key inside of where the title and text data exists and then pushing those entire objects into our dataArray
+            for(let objKey in userData){
+              userData[objKey].key = objKey;
+              dataArray.push(userData[objKey]);
+            }
+            // console.log(dataArray);
+            //25) how do we set our notes?
+            this.setState({
+              notes: dataArray,
+              //when the page loads now we have persistent data
+              //to delete a note we have to add a removeNote
+
+              //54.2) using loggedIn as true so that we conditionally show things if loggedIn is true
+              loggedIn: true
+            })
+          });
+          //54.3) if there's any sort of change and the user doesn't exist anymore we want to log the user out
+          //setting the notes back to nothing as well 
+          //54 is done here*
+        }else{
+          this.setState({
+            notes: dataArray,
+            loggedIn: false
+          })
         }
-        // console.log(dataArray);
-        //25) how do we set our notes?
-        this.setState({
-          notes: dataArray
-          //when the page loads now we have persistent data
-          //to delete a note we have to add a removeNote
-        })
-      });
-    }
+    })
+  }    
 
 
     showSidebar(e){
@@ -119,7 +140,14 @@ class App extends React.Component {
       //now we have to set the state again
       //the biggest issue we have is our notes array wants to be an array but our data is an object-- we need to be able to access the two properties
       //also  to delete the data we need to be albe to reference the keys as well
-      const dbRef = firebase.database().ref();
+
+      // 60) we're going to create a new path instead of having it pust to just .ref()
+      //if we go firebase.auth().currentUser you can see in the data that there's a unique uid. that's consistent and constant to them
+      //we're going to store that in a const 
+      //in our database now it's tiered from having the user > UID > and then their notes
+      //in 61 we have to go back up to componentDidMount and change the ref
+      const userId = firebase.auth().currentUser.uid;
+      const dbRef = firebase.database().ref(`users/${userId}/notes`);
       dbRef.push(note);
 
       //18) once everything is submitted we want to clear our form and close our sidebar
@@ -130,13 +158,18 @@ class App extends React.Component {
 
     //26) it will take just a noteId-- that's how we'll remove it from firebase
     //we can then pass this down to our NoteCard
-    removeNote(noteKey){
-      console.log(noteKey);
+    removeNote(noteId){
+      console.log(noteId);
       // 29) to remove the note from our database, we have to tell it from what reference-- in this case we tell it to go to the key
       //we're grabbing that location in our database and saying to remove it 
       //now move on to notesCard.js to allow us to edit our cards
 
-      const dbRef = firebase.database().ref(noteKey);
+      //63) we also need to grab the userID as well again
+      // part 64 starts in our notesCard which is for editing 
+      const userId = firebase.auth().currentUser.uid;
+
+      //62) we grabbed from 61) because we tiered it and have to drill down to where the note is
+      const dbRef = firebase.database().ref(`users/${userId}/notes/${noteId}`);
       dbRef.remove();
     }
     // 47) this.showCreate
@@ -185,7 +218,8 @@ class App extends React.Component {
       }
 
       //51) we want to grab the email and password of the user-- continue on to 52 for allowing us to close the modal boxes
-      loginUser(){
+      loginUser(e){
+        e.preventDefault();
         const email = this.userEmail.value;
         const password = this.userPassword.value;
 
@@ -199,6 +233,30 @@ class App extends React.Component {
         })
       }
 
+      // 58) we don't have to bind anything here we're just going to call:
+      //it'll trigger the signout for us 
+      logOut(){
+        firebase.auth().signOut();
+      }
+
+    //55) we want to show if the user is logged in we want to put the cards there else we want to show them nothing
+    //we're going to remove the notesCard section from below
+
+    renderCards(){
+      //if the user is loggedin we're going to return the NoteCard map
+      //else we're going to return a H2 that says Login to add notes
+      //go down to 56) now we just call this.renderCards in our section
+      if(this.state.loggedIn){
+        return this.state.notes.map((note, i) => {
+          return (
+            <NoteCard note={note} key={`note-${i}`} removeNote={this.removeNote} />
+          )
+        }).reverse()
+      }else{
+        return <h2>Login to add notes!</h2>
+      }
+    } 
+
     render() {
       return (
         <div>
@@ -206,21 +264,48 @@ class App extends React.Component {
             <h1>Noted</h1>
             <nav>
 
+              {/* 59) if we're logged in we want to show Add New Note and Logout
+            - if we're not logged in we want to show Create Account and Login 
+            - going to use an "iffy" statement and wrap them*/}
+            
+            {
+              (() => {
+                if(this.state.loggedIn){
+                  return(
+                    <span>
+                      <a href="" onClick={this.showSidebar}>Add New Note</a>
+                      <a href="" onClick={this.logOut}>Logout</a>
+                    </span>
+                  )
+                }else{
+                    return(
+                    <span>
+                      <a href="" onClick={this.showCreate}>Create Account</a>
+                      <a href="" onClick={this.showLogin}>Login</a>
+                    </span>
+                    )
+                }
+              })()
+            }
+
               {/* 43) we need to add a user create account 
               - we want a modal box to pop up*/}
 
               {/* 46) adding onClick of showCreate */}
-              <a href="" onClick={this.showCreate}>Create Account</a>
+              {/* <a href="" onClick={this.showCreate}>Create Account</a> */}
 
               {/* 48) adding a new ubtton so we can login
               - if you already have an account we want you to login*/}
-              <a href="" onClick={this.showLogin}>Login</a>
+              {/* <a href="" onClick={this.showLogin}>Login</a> */}
+
+              {/* 57) logout button */}
+              {/* <a href="" onClick={this.logOut}>Logout</a> */}
 
 
               {/* 1) on click here we want something to happen so we're going to add an event listener.
               This callback will get passed the event and then will call the sidebar with that specific e.
               Changed this to the bind way of doing it */}
-              <a href="" onClick={this.showSidebar}>Add New Note</a>
+              {/* <a href="" onClick={this.showSidebar}>Add New Note</a> */}
             </nav>
           </header>
           {/* 43) modal box */}
@@ -238,14 +323,21 @@ class App extends React.Component {
             - map will iterate over, for each note it'll pass that note as a property called note to our note card component
             - we need to add a key as well*/}
             
-            {this.state.notes.map((note, i) => {
+
+            {/* 54) as part of part 54 we moved  all this up into an event handler called renderCards */}
+
+            {/* 56 */}
+            {this.renderCards()}
+
+            {/* {this.state.notes.map((note, i) => {
               return(
                 //17) passing down prop of note which is both note.title and note.text in notesCard
                 //27) *added this.removeNote* then we can call this inside of our notesCard component
+
                 <NoteCard note={note} key={`note-${i}`} removeNote={this.removeNote} />
               )
               // 19) if we want the newest card to show first add reverse
-            }).reverse()} 
+            }).reverse()}  */}
           </section>
 
 {/* when we click on add new it'll slide out and let us add our note */}
