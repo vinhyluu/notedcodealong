@@ -1,6 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import NoteCard from './notesCard';
+//42) now we want users to be able to login and have their own notes 
+//in firebase, hit authentication, sign in method, email, enable and save
+//now when we add users it'll show up in the authentication section
+//on the api reference page, you can find web, password authentication
+// we're going to use create user and the sign in
+//https://firebase.google.com/docs/auth/web/password-auth?authuser=0
 
 //20) setting up firebase
 const config = {
@@ -56,6 +62,7 @@ class App extends React.Component {
         this.setState({
           notes: dataArray
           //when the page loads now we have persistent data
+          //to delete a note we have to add a removeNote
         })
       });
     }
@@ -113,18 +120,40 @@ class App extends React.Component {
       this.showSidebar(e);
     }
 
+    //26) it will take just a noteId-- that's how we'll remove it from firebase
+    //we can then pass this down to our NoteCard
+    removeNote(noteKey){
+      console.log(noteKey);
+      // 29) to remove the note from our database, we have to tell it from what reference-- in this case we tell it to go to the key
+      //we're grabbing that location in our database and saying to remove it 
+      //now move on to notesCard.js to allow us to edit our cards
+
+      const dbRef = firebase.database().ref(noteKey);
+      dbRef.remove();
+    }
+
     render() {
       return (
         <div>
           <header className="mainHeader">
             <h1>Noted</h1>
             <nav>
+
+              {/* 43) we need to add a user create account 
+              - adding an onClick
+              - we want a modal box to pop up*/}
+              <a href="" onClick={}></a>
+              <a href=""></a>
+
+
               {/* 1) on click here we want something to happen so we're going to add an event listener.
               This callback will get passed the event and then will call the sidebar with that specific e.
               Changed this to the bind way of doing it */}
               <a href="" onClick={this.showSidebar}>Add New Note</a>
             </nav>
           </header>
+          {/* 43) */}
+          <div className="overlay" ref={ref => this.overlay = ref}></div>
 
 {/* this is where all of our notes will live */}
 {/* 14) we're going to put this into another component */}
@@ -140,8 +169,9 @@ class App extends React.Component {
             
             {this.state.notes.map((note, i) => {
               return(
-                // passing down prop of note which is both note.title and note.text in notesCard
-                <NoteCard note={note} key={`note-${i}`} />
+                //17) passing down prop of note which is both note.title and note.text in notesCard
+                //27) *added this.removeNote* then we can call this inside of our notesCard component
+                <NoteCard note={note} key={`note-${i}`} removeNote={this.removeNote} />
               )
               // 19) if we want the newest card to show first add reverse
             }).reverse()} 
